@@ -4,6 +4,7 @@ import logging
 import re
 import time
 
+from app.ai.assignment_generator import generate_practice_assignment
 from app.ai.chunking import Chunk, chunk_text, distribute
 from app.ai.gemini_client import LLMClient
 from app.ai.prompt_loader import render_prompt
@@ -496,5 +497,17 @@ class StudyPackPipeline:
             applied, removed = self.apply_corrections(pack)
             pack.meta.corrections_applied = applied
             pack.meta.duplicates_removed = removed
+
+        # Build grounded Practice Assignment (MCQ only)
+        assignment_count = getattr(options, "assignment_mcq_count", 10)
+        assignment_diff = getattr(options, "assignment_difficulty", options.difficulty)
+        pack.practice_assignment = generate_practice_assignment(
+            llm=None,
+            text=text,
+            count=assignment_count,
+            difficulty=assignment_diff,
+            fallback_mcqs=pack.questions.mcqs,
+        )
+
         pack.meta.total_seconds = round(time.perf_counter() - t0, 2)
         return pack

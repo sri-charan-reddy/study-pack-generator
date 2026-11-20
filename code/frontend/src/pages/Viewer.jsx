@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api.js'
-import { Alert, Badge, Loading } from '../components/ui.jsx'
+import { Alert, Badge, Loading, Spinner } from '../components/ui.jsx'
 import { formatDate, formatSeconds } from '../utils/format.js'
 
 const LETTERS = ['A', 'B', 'C', 'D']
+const DIFFICULTIES = ['mixed', 'easy', 'medium', 'hard']
 
 export default function Viewer() {
   const { packId } = useParams()
@@ -25,15 +26,34 @@ export default function Viewer() {
   if (!record?.pack) return <Loading text="Loading study pack…" />
 
   const pack = record.pack
-  const { document: doc, summaries, key_concepts: kc, questions: q, review, meta } = pack
+  const { document: doc, summaries, key_concepts: kc, questions: q, review, meta, practice_assignment } = pack
+  const assignment = practice_assignment || {
+    title: 'Practice Assignment',
+    difficulty: 'mixed',
+    mcq_count: 0,
+    questions: [],
+    submission: null,
+  }
+
   const tabs = [
     ['summary', 'Summary', summaries.topics.length],
+    ['assignment', 'Practice Assignment', assignment.questions?.length || 0],
     ['concepts', 'Key concepts', kc.terms.length + kc.formulas.length + kc.key_concepts.length],
     ['mcq', 'MCQs', q.mcqs.length],
     ['short', 'Short questions', q.short_answer.length],
     ['long', 'Long questions', q.long_answer.length],
     ['review', 'Quality report', review ? review.issues.length : 0],
   ]
+
+  function updateAssignment(updated) {
+    setRecord((prev) => ({
+      ...prev,
+      pack: {
+        ...prev.pack,
+        practice_assignment: updated,
+      },
+    }))
+  }
 
   return (
     <>
@@ -63,7 +83,21 @@ export default function Viewer() {
           ))}
         </div>
 
-        {tab === 'summary' && <SummaryTab doc={doc} summaries={summaries} />}
+        {tab === 'summary' && (
+          <SummaryTab
+            doc={doc}
+            summaries={summaries}
+            assignment={assignment}
+            onGoToAssignment={() => setTab('assignment')}
+          />
+        )}
+        {tab === 'assignment' && (
+          <PracticeAssignmentTab
+            packId={record.id}
+            assignment={assignment}
+            onUpdateAssignment={updateAssignment}
+          />
+        )}
         {tab === 'concepts' && <ConceptsTab kc={kc} />}
         {(tab === 'mcq' || tab === 'short' || tab === 'long') && (
           <div className="toggle-answers">
@@ -79,7 +113,7 @@ export default function Viewer() {
   )
 }
 
-function SummaryTab({ doc, summaries }) {
+function SummaryTab({ doc, summaries, assignment, onGoToAssignment }) {
   return (
     <>
       {summaries.overall_summary && <div className="topic"><h3>Overview</h3><p>{summaries.overall_summary}</p></div>}
@@ -104,7 +138,301 @@ function SummaryTab({ doc, summaries }) {
           {t.examples.length > 0 && <><div className="sub-label">Examples</div><ul>{t.examples.map((e, i) => <li key={i}>{e}</li>)}</ul></>}
         </div>
       ))}
+
+      {/* Practice Assignment Section immediately after summaries */}
+      <div className="card mt" style={{ background: 'linear-gradient(135deg, rgba(30, 58, 138, 0.05), rgba(59, 130, 246, 0.08))', border: '1px solid rgba(59, 130, 246, 0.3)', padding: '20px', borderRadius: '12px' }}>
+        <div className="row space">
+          <div>
+            <h3 style={{ margin: 0, color: 'var(--primary)' }}>Practice Assignment (MCQ Only)</h3>
+            <p style={{ margin: '6px 0 0', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
+              Test your understanding of this lecture with {assignment?.questions?.length || 10} grounded multiple-choice questions with instant scoring, answer keys, and explanations.
+            </p>
+          </div>
+          <button className="btn btn-primary" onClick={onGoToAssignment}>
+            Open Practice Assignment →
+          </button>
+        </div>
+      </div>
     </>
+  )
+}
+
+function PracticeAssignmentTab({ packId, assignment, onUpdateAssignment }) {
+  const [answers, setAnswers] = useState(assignment.submission?.user_answers || {})
+  const [submitting, setSubmitting] = useState(false)
+  const [retrying, setRetrying] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [actionError, setActionError] = useState('')
+  const [reqCount, setReqCount] = useState(assignment.questions?.length || 10)
+  const [reqDiff, setReqDiff] = useState(assignment.difficulty || 'mixed')
+
+  const submission = assignment.submission
+  const isSubmitted = Boolean(submission?.is_submitted)
+  const questions = assignment.questions || []
+  const answeredCount = Object.keys(answers).filter((k) => answers[k]).length
+
+  function handleSelect(qid, letter) {
+    if (isSubmitted) return
+    setAnswers((prev) => ({
+      ...prev,
+      [qid]: letter,
+    }))
+  }
+
+  async function handleSubmit() {
+    setSubmitting(true)
+    setActionError('')
+    try {
+      const updated = await api.submitAssignment(packId, answers)
+      onUpdateAssignment(updated)
+    } catch (e) {
+      setActionError(e.message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleRetry() {
+    setRetrying(true)
+    setActionError('')
+    try {
+      const updated = await api.retryAssignment(packId)
+      setAnswers({})
+      onUpdateAssignment(updated)
+    } catch (e) {
+      setActionError(e.message)
+    } finally {
+      setRetrying(false)
+    }
+  }
+
+  async function handleReconfigure() {
+    setGenerating(true)
+    setActionError('')
+    try {
+      const updated = await api.generateAssignment(packId, {
+        mcq_count: reqCount,
+        difficulty: reqDiff,
+      })
+      setAnswers({})
+      onUpdateAssignment(updated)
+    } catch (e) {
+      setActionError(e.message)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      {actionError && <div className="mb"><Alert>{actionError}</Alert></div>}
+
+      {/* Assignment Configuration & Metadata Toolbar */}
+      <div className="card mb" style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '16px' }}>
+        <div className="row space">
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.15rem' }}>Practice Assignment Configuration</h3>
+            <span className="small muted">Multiple Choice Questions (MCQ Only) · Strictly grounded in lecture notes</span>
+          </div>
+          <div className="row" style={{ gap: '10px' }}>
+            <div className="row" style={{ gap: '6px' }}>
+              <span className="small muted">Count:</span>
+              <div className="segmented">
+                {[5, 10, 15, 20].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={reqCount === n ? 'active' : ''}
+                    onClick={() => setReqCount(n)}
+                    disabled={generating}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="row" style={{ gap: '6px' }}>
+              <span className="small muted">Difficulty:</span>
+              <div className="segmented">
+                {DIFFICULTIES.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className={reqDiff === d ? 'active' : ''}
+                    onClick={() => setReqDiff(d)}
+                    disabled={generating}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={handleReconfigure}
+              disabled={generating || submitting || retrying}
+            >
+              {generating ? <><Spinner /> Generating…</> : 'Generate / Reconfigure'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Submission Score & Result Banner */}
+      {isSubmitted && submission && (
+        <div className={`assignment-banner score-banner ${submission.percentage < 70 ? 'needs-review' : ''}`}>
+          <div className="row space">
+            <div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 700, color: submission.percentage >= 70 ? '#065f46' : '#92400e' }}>
+                Score: {submission.score} / {submission.total} ({submission.percentage}%)
+              </div>
+              <div style={{ fontSize: '0.9rem', color: '#4b5563', marginTop: 4 }}>
+                {submission.percentage >= 70
+                  ? 'Great performance! You demonstrated solid mastery of the lecture concepts.'
+                  : 'Review the explanations below and retry to strengthen your understanding.'}
+              </div>
+            </div>
+            <div className="btn-row">
+              <button className="btn btn-primary btn-sm" onClick={handleRetry} disabled={retrying}>
+                {retrying ? <><Spinner /> Resetting…</> : 'Retry Assignment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Questions List */}
+      {questions.length === 0 ? (
+        <p className="muted">No practice assignment questions generated. Click Generate above.</p>
+      ) : (
+        questions.map((q, idx) => {
+          const userChoice = answers[q.id]
+          const isCorrect = userChoice && userChoice === q.correct_option
+
+          return (
+            <div className="question" key={q.id || idx}>
+              <div className="q-head">
+                <span className="q-num">Q{idx + 1}.</span>
+                <span className="q-text">{q.question}</span>
+              </div>
+              <div className="q-tags">
+                <Badge value={q.difficulty || 'medium'} />
+                {q.topic && <span className="badge badge-neutral">{q.topic}</span>}
+                <span className="small muted">{q.id}</span>
+                {isSubmitted && (
+                  isCorrect ? (
+                    <span className="badge badge-completed">Correct (+1)</span>
+                  ) : (
+                    <span className="badge badge-failed">Incorrect (0)</span>
+                  )
+                )}
+              </div>
+
+              {/* Four Selectable Options A, B, C, D */}
+              <div className="mt" style={{ marginTop: '10px' }}>
+                {q.options.map((opt, j) => {
+                  const letter = LETTERS[j]
+                  const isSelected = userChoice === letter
+                  let btnClass = 'assignment-option-btn'
+                  let tag = null
+
+                  if (!isSubmitted) {
+                    if (isSelected) btnClass += ' selected'
+                  } else {
+                    const isRightOption = letter === q.correct_option
+                    if (isRightOption) {
+                      btnClass += ' opt-correct'
+                      tag = <span className="opt-tag correct">Correct Answer</span>
+                    } else if (isSelected && !isRightOption) {
+                      btnClass += ' opt-incorrect'
+                      tag = <span className="opt-tag incorrect">Your Choice</span>
+                    }
+                  }
+
+                  return (
+                    <button
+                      key={j}
+                      type="button"
+                      className={btnClass}
+                      onClick={() => handleSelect(q.id, letter)}
+                      disabled={isSubmitted}
+                    >
+                      <span className="letter" style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '50%',
+                        background: isSelected ? 'var(--primary)' : 'rgba(0,0,0,0.06)',
+                        color: isSelected ? '#fff' : 'inherit',
+                        fontWeight: 700,
+                        fontSize: '13px',
+                      }}>
+                        {letter}
+                      </span>
+                      <span>{opt}</span>
+                      {tag}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {/* Answer & Explanation (Shown only after submission) */}
+              {isSubmitted && (
+                <div className="answer-box">
+                  <div className="label">
+                    Correct Answer: Option {q.correct_option}
+                  </div>
+                  {q.explanation && (
+                    <div className="explain">
+                      <strong>Explanation: </strong>{q.explanation}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })
+      )}
+
+      {/* Bottom Assignment Action Bar */}
+      {questions.length > 0 && (
+        <div className="card mt" style={{ background: 'var(--bg)', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            {!isSubmitted ? (
+              <span className="small muted">
+                <strong>{answeredCount}</strong> of <strong>{questions.length}</strong> questions answered
+                {answeredCount < questions.length && ' (unanswered questions will be scored 0)'}
+              </span>
+            ) : (
+              <span className="small muted">
+                Assignment completed. Review detailed answers above.
+              </span>
+            )}
+          </div>
+          <div>
+            {!isSubmitted ? (
+              <button
+                className="btn btn-primary btn-lg"
+                onClick={handleSubmit}
+                disabled={submitting}
+              >
+                {submitting ? <><Spinner /> Scoring…</> : 'Submit Assignment'}
+              </button>
+            ) : (
+              <button
+                className="btn btn-outline btn-lg"
+                onClick={handleRetry}
+                disabled={retrying}
+              >
+                {retrying ? <><Spinner /> Resetting…</> : 'Retry Assignment'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

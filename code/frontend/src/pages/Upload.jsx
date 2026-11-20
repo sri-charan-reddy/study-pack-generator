@@ -5,6 +5,11 @@ import { Alert, Spinner } from '../components/ui.jsx'
 import { formatBytes } from '../utils/format.js'
 
 const DIFFICULTIES = ['mixed', 'easy', 'medium', 'hard']
+const PROMPT_VERSIONS = [
+  { id: 'v1', label: 'V1 – Baseline' },
+  { id: 'v2', label: 'V2 – Role-Based' },
+  { id: 'v3', label: 'V3 – Few-Shot Grounded' },
+]
 
 export default function Upload() {
   const navigate = useNavigate()
@@ -16,7 +21,17 @@ export default function Upload() {
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState('')
   const [versions, setVersions] = useState([])
-  const [options, setOptions] = useState({ prompt_version: 'v3', difficulty: 'mixed', mcq_count: 10, short_count: 5, long_count: 3, run_review: true, apply_corrections: true })
+  const [options, setOptions] = useState({
+    prompt_version: 'v3',
+    difficulty: 'mixed',
+    assignment_mcq_count: 10,
+    assignment_difficulty: 'mixed',
+    mcq_count: 10,
+    short_count: 5,
+    long_count: 3,
+    run_review: true,
+    apply_corrections: true,
+  })
 
   useEffect(() => {
     api.promptVersions()
@@ -141,22 +156,61 @@ export default function Upload() {
           <div className="field">
             <label>Prompt version</label>
             <div className="segmented">
-              {versions.map((v) => (
-                <button key={v.version} type="button" className={options.prompt_version === v.version ? 'active' : ''} onClick={() => setOptions((o) => ({ ...o, prompt_version: v.version }))}>
-                  {v.version.toUpperCase()}
+              {PROMPT_VERSIONS.map((pv) => (
+                <button
+                  key={pv.id}
+                  type="button"
+                  className={options.prompt_version === pv.id ? 'active' : ''}
+                  onClick={() => setOptions((o) => ({ ...o, prompt_version: pv.id }))}
+                >
+                  {pv.label}
                 </button>
               ))}
             </div>
-            <span className="help">{versions.find((v) => v.version === options.prompt_version)?.description || ''}</span>
           </div>
           <div className="field">
             <label>Difficulty</label>
             <div className="segmented">
               {DIFFICULTIES.map((d) => (
-                <button key={d} type="button" className={options.difficulty === d ? 'active' : ''} onClick={() => setOptions((o) => ({ ...o, difficulty: d }))}>{d}</button>
+                <button key={d} type="button" className={options.difficulty === d ? 'active' : ''} onClick={() => setOptions((o) => ({ ...o, difficulty: d, assignment_difficulty: d }))}>{d}</button>
               ))}
             </div>
             <span className="help">Mixed gives a balanced spread of easy, medium and hard.</span>
+          </div>
+        </div>
+        <div className="card mb" style={{ background: 'var(--card)', border: '1px solid var(--border)', padding: '16px' }}>
+          <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--primary)' }}>Practice Assignment (MCQ only)</div>
+          <div className="grid grid-2">
+            <div className="field">
+              <label>Assignment questions (MCQ only)</label>
+              <div className="segmented">
+                {[5, 10, 15, 20].map((count) => (
+                  <button
+                    key={count}
+                    type="button"
+                    className={options.assignment_mcq_count === count ? 'active' : ''}
+                    onClick={() => setOptions((o) => ({ ...o, assignment_mcq_count: count }))}
+                  >
+                    {count} MCQs
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="field">
+              <label>Assignment difficulty</label>
+              <div className="segmented">
+                {DIFFICULTIES.map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    className={options.assignment_difficulty === d ? 'active' : ''}
+                    onClick={() => setOptions((o) => ({ ...o, assignment_difficulty: d }))}
+                  >
+                    {d}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
         <div className="form-grid">

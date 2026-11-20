@@ -1,14 +1,21 @@
 """Saved study packs: list, fetch, delete and download."""
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
+from app.ai.assignment_generator import generate_practice_assignment
+from app.ai.gemini_client import GeminiService
+from app.ai.schemas import PracticeAssignment
 from app.db import repository
 from app.db.database import get_db
 from app.db.models import StudyPackRecord
+from app.extractors import extract_text
 from app.services import export_service
+from app.services.generation_service import find_uploaded_file
 
 router = APIRouter(prefix="/api/study-packs", tags=["study-packs"])
 
@@ -40,6 +47,15 @@ class StudyPackDetail(StudyPackSummary):
     pack: dict | None
     prompt_tokens: int
     output_tokens: int
+
+
+class GenerateAssignmentRequest(BaseModel):
+    mcq_count: Literal[5, 10, 15, 20] = 10
+    difficulty: Literal["mixed", "easy", "medium", "hard"] = "mixed"
+
+
+class SubmitAssignmentRequest(BaseModel):
+    answers: dict[str, str] = Field(default_factory=dict)
 
 
 def _summary(r: StudyPackRecord) -> dict:
@@ -74,7 +90,94 @@ def list_study_packs(limit: int = Query(default=100, ge=1, le=500), db: Session 
 @router.get("/{pack_id}", response_model=StudyPackDetail)
 def get_study_pack(pack_id: int, db: Session = Depends(get_db)) -> StudyPackDetail:
     r = _get_or_404(db, pack_id)
+    if r.pack and "practice_assignment" not in r.pack:
+        mcqs = r.pack.get("questions", {}).get("mcqs", [])
+        pa = generate_practice_assignment(None, "", count=10, difficulty="mixed", fallback_mcqs=mcqs)
+        r.pack["practice_assignment"] = pa.model_dump(mode="json")
+        flag_modified(r, "pack")
+        db.commit()
+        db.refresh(r)
     return StudyPackDetail(**_summary(r), options=r.options or {}, pack=r.pack, prompt_tokens=r.prompt_tokens, output_tokens=r.output_tokens)
+
+
+@router.post("/{pack_id}/assignment/generate", response_model=dict)
+def generate_assignment(pack_id: int, req: GenerateAssignmentRequest, db: Session = Depends(get_db)) -> dict:
+    r = _get_or_404(db, pack_id)
+    if r.status != "completed" or not r.pack:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"Study pack {pack_id} is not completed.")
+    
+    text = ""
+    try:
+        stored = find_uploaded_file(r.document_id)
+        extraction = extract_text(stored)
+        text = extraction.text
+    except Exception:
+        text = ""
+    
+    llm = None
+    try:
+        from app.config import get_settings
+        if get_settings().gemini_configured:
+            llm = GeminiService()
+    except Exception:
+        llm = None
+
+    fallback_mcqs = r.pack.get("questions", {}).get("mcqs", [])
+    assignment = generate_practice_assignment(llm, text, count=req.mcq_count, difficulty=req.difficulty, fallback_mcqs=fallback_mcqs)
+    r.pack["practice_assignment"] = assignment.model_dump(mode="json")
+    flag_modified(r, "pack")
+    db.commit()
+    db.refresh(r)
+    return r.pack["practice_assignment"]
+
+
+@router.post("/{pack_id}/assignment/submit", response_model=dict)
+def submit_assignment(pack_id: int, req: SubmitAssignmentRequest, db: Session = Depends(get_db)) -> dict:
+    r = _get_or_404(db, pack_id)
+    if not r.pack or "practice_assignment" not in r.pack:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Practice assignment not found in this study pack.")
+    
+    pa = r.pack["practice_assignment"]
+    questions = pa.get("questions", [])
+    if not questions:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "No questions found in practice assignment.")
+    
+    score = 0
+    total = len(questions)
+    for q in questions:
+        qid = q.get("id")
+        user_choice = (req.answers.get(qid) or "").strip().upper()
+        correct_choice = (q.get("correct_option") or "").strip().upper()
+        if user_choice and user_choice == correct_choice:
+            score += 1
+            
+    percentage = round((score / total) * 100, 1) if total > 0 else 0.0
+    submission = {
+        "user_answers": req.answers,
+        "score": score,
+        "total": total,
+        "percentage": percentage,
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
+        "is_submitted": True,
+    }
+    pa["submission"] = submission
+    flag_modified(r, "pack")
+    db.commit()
+    db.refresh(r)
+    return pa
+
+
+@router.post("/{pack_id}/assignment/retry", response_model=dict)
+def retry_assignment(pack_id: int, db: Session = Depends(get_db)) -> dict:
+    r = _get_or_404(db, pack_id)
+    if not r.pack or "practice_assignment" not in r.pack:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Practice assignment not found in this study pack.")
+    
+    r.pack["practice_assignment"]["submission"] = None
+    flag_modified(r, "pack")
+    db.commit()
+    db.refresh(r)
+    return r.pack["practice_assignment"]
 
 
 @router.delete("/{pack_id}", status_code=status.HTTP_204_NO_CONTENT)

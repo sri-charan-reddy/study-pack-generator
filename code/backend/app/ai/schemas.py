@@ -209,6 +209,50 @@ class ReviewOutput(BaseModel):
     reviewer_notes: str = ""
 
 
+# ---------- Practice Assignment (MCQ only) ----------
+class PracticeAssignmentMCQ(BaseModel):
+    id: str = ""
+    question: str
+    options: list[str]
+    correct_option: str
+    explanation: str = ""
+    difficulty: Difficulty = "medium"
+    topic: str = ""
+
+    @field_validator("options")
+    @classmethod
+    def _four_options(cls, v):
+        v = [str(o).strip() for o in v if str(o).strip()]
+        if len(v) != 4:
+            raise ValueError("MCQ must have exactly 4 options")
+        return v
+
+    @field_validator("correct_option")
+    @classmethod
+    def _letter(cls, v):
+        v = str(v).strip().upper().rstrip(".)")
+        if v not in ("A", "B", "C", "D"):
+            raise ValueError("correct_option must be A, B, C or D")
+        return v
+
+
+class PracticeAssignmentSubmission(BaseModel):
+    user_answers: dict[str, str] = Field(default_factory=dict)
+    score: int = 0
+    total: int = 0
+    percentage: float = 0.0
+    submitted_at: datetime | None = None
+    is_submitted: bool = False
+
+
+class PracticeAssignment(BaseModel):
+    title: str = "Practice Assignment"
+    difficulty: Literal["mixed", "easy", "medium", "hard"] = "mixed"
+    mcq_count: int = 10
+    questions: list[PracticeAssignmentMCQ] = Field(default_factory=list)
+    submission: PracticeAssignmentSubmission | None = None
+
+
 # ---------- Final study pack ----------
 class GenerationOptions(BaseModel):
     prompt_version: PromptVersion = "v1"
@@ -216,6 +260,8 @@ class GenerationOptions(BaseModel):
     short_count: int = Field(default=5, ge=0, le=20)
     long_count: int = Field(default=3, ge=0, le=10)
     difficulty: Literal["mixed", "easy", "medium", "hard"] = "mixed"
+    assignment_mcq_count: int = Field(default=10, ge=5, le=20)
+    assignment_difficulty: Literal["mixed", "easy", "medium", "hard"] = "mixed"
     run_review: bool = True
     apply_corrections: bool = True
 
@@ -252,4 +298,5 @@ class StudyPack(BaseModel):
     key_concepts: KeyConceptsOutput
     questions: QuestionsOutput
     review: ReviewOutput | None = None
+    practice_assignment: PracticeAssignment | None = None
     meta: StudyPackMeta

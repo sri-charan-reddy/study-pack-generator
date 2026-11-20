@@ -1,13 +1,13 @@
 # Test Case Table: Verification & Validation
 
-This test table documents **14 distinct meaningful test inputs** executed across the application. Each case was actively tested against the running FastAPI application and the pytest test suite.
+This test table documents **17 distinct meaningful test inputs** executed across the application. Each case was actively tested against the running FastAPI application and the pytest test suite.
 
 ---
 
-## Test Inputs Table (Count: 14 for Microsoft Form Q17)
+## Test Inputs Table (Count: 17 for SCSE4041 Evaluation)
 
 | Test ID | Input / Scenario | Test Type | Expected Result | Actual Result | Status | Evidence / Test Reference |
-| :---: | :--- | :---: | :--- | :--- | :---: | :--- |
+| :---: | :--- | :--- | :--- | :--- | :---: | :--- |
 | **TC01** | `lecture.pdf` (multi-page course slides in PDF format) | **Normal** | HTTP 200; extract pages, character count, and word count. Preserves page markers. | Extracted 3 pages, 1,240 characters, status `completed`. | **PASS** | `tests/test_upload_api.py::test_upload_success[lecture.pdf-pdf]` |
 | **TC02** | `lecture.pptx` (PowerPoint presentation with slide text, tables, notes) | **Normal** | HTTP 200; extract slide titles, body bullet points, speaker notes, and table content. | Extracted 4 slides, speaker notes, and tabular cells. | **PASS** | `tests/test_upload_api.py::test_upload_success[lecture.pptx-pptx]` |
 | **TC03** | `lecture.docx` (Word document with headings H1-H4, lists, tables) | **Normal** | HTTP 200; parse paragraph structures, preserve hierarchical headings and table data. | Extracted paragraphs and tables without formatting artifacts. | **PASS** | `tests/test_upload_api.py::test_upload_success[lecture.docx-docx]` |
@@ -21,12 +21,15 @@ This test table documents **14 distinct meaningful test inputs** executed across
 | **TC11** | `POST /api/generate/non_existent_uuid` | **Invalid** | HTTP 404 Not Found; graceful handling of missing file entity. | HTTP 404 returned: `"File not found"`. | **PASS** | `tests/test_ai_api.py::test_generate_unknown_file` |
 | **TC12** | Transient upstream Gemini API 429 Rate Limit error | **Edge** | Retry with exponential backoff (up to 3 retries); bubble clean 429 if unrecovered. | Retried with jittered backoff; correctly converted to HTTP 429 client response. | **PASS** | `tests/test_gemini_client.py::test_rate_limit_retries_then_raises` |
 | **TC13** | Malformed / non-conforming JSON returned by Gemini API | **Edge** | Catch validation error; trigger automated repair prompt feeding back Pydantic error. | Repaired on attempt 2; parsed into valid Pydantic model. | **PASS** | `tests/test_gemini_client.py::test_generate_validated_repairs_once` |
-| **TC14** | Export generation: Download PDF and DOCX formats | **Normal** | ReportLab builds valid multi-page PDF; python-docx builds valid Word document with tables. | Generated 12-page PDF and valid OOXML DOCX with sanitized filename. | **PASS** | `tests/test_export.py::test_pdf_builds_with_special_characters` & `tests/test_study_packs_api.py::test_download_pdf` |
+| **TC14** | Export generation: Download PDF and DOCX formats | **Normal** | ReportLab builds valid multi-page PDF; python-docx builds valid Word document with tables. | Generated 12-page PDF and valid OOXML DOCX with sanitized filename and practice assignment. | **PASS** | `tests/test_export.py::test_pdf_builds_with_special_characters` & `tests/test_study_packs_api.py::test_download_pdf` |
+| **TC15** | Practice Assignment: MCQ-only constraint and 4-option validation | **Normal** | Generates strictly MCQs with exactly 4 options (A-D), 1 correct answer, and explanation. Rejects short/long/essay. | Validated via Pydantic model; exactly 4 options and valid answer keys enforced. | **PASS** | `tests/test_practice_assignment.py::test_practice_assignment_mcq_schema_validation` |
+| **TC16** | Practice Assignment: Automated scoring, answer hiding, and retry | **Edge** | Hides answers during attempt; calculates score and percentage on submission; retry resets state; persists in SQLite. | Score correctly calculated (1/4, 25%), persisted across page reloads, and reset cleanly on retry. | **PASS** | `tests/test_practice_assignment.py::test_practice_assignment_scoring_and_retry` |
+| **TC17** | Prompt Privacy: `/api/prompts/versions` exposure audit | **Normal** | Returns only version names (`V1 – Baseline`, `V2 – Role-Based`, `V3 – Few-Shot Grounded`). Zero prompt text or instructions leaked. | Verified zero raw template text, system instructions, or placeholders leaked in public payload. | **PASS** | `tests/test_practice_assignment.py::test_prompt_privacy_no_prompt_template_leakage` |
 
 ---
 
 ## Distribution Breakdown
-- **Normal Test Cases**: 6 (TC01, TC02, TC03, TC04, TC09, TC14)
-- **Edge Test Cases**: 3 (TC08, TC12, TC13)
-- **Invalid Test Cases**: 5 (TC05, TC06, TC07, TC10, TC11)
-- **Edge + Invalid Total**: 8 cases (57% of total test suite, well above the required minimum of 3).
+- **Normal Test Cases**: 9 (TC01, TC02, TC03, TC04, TC09, TC14, TC15, TC17)
+- **Edge Test Cases**: 4 (TC08, TC12, TC13, TC16)
+- **Invalid Test Cases**: 4 (TC05, TC06, TC07, TC10, TC11)
+- **Edge + Invalid Total**: 8 cases (47% of total test suite, well above the required minimum of 3).

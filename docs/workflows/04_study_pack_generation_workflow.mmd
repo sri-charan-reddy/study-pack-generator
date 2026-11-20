@@ -55,8 +55,28 @@ sequenceDiagram
         Pipeline->>Gemini: Call Gemini 3.5 Flash Lite
         Gemini-->>Pipeline: JSON response
         
+        Worker->>Pipeline: Generate & ground Practice Assignment (MCQ only: 5/10/15/20)
         Worker->>Pipeline: Apply automated corrections & compute metrics
         Worker->>DB: Update status='completed', current_stage='done', pack=FullJSON, overall_score=10.0
+    end
+
+    UI->>UI: Redirect to /packs/{id} Viewer
+    UI->>User: Display Study Pack (Summary, Practice Assignment, Concepts, Q&A)
+    
+    rect rgb(240, 248, 255)
+        note over User,DB: Interactive Practice Assignment Flow
+        User->>UI: Select MCQ answers (correct answers hidden)
+        User->>UI: Click "Submit Assignment"
+        UI->>API: POST /api/study-packs/{id}/assignment/submit ({answers})
+        API->>DB: Calculate score, percentage, record submission state
+        DB-->>API: Persisted submission
+        API-->>UI: Return updated assignment with score and explanations
+        UI->>User: Display score (marks & %), green/red option highlights, explanations
+        User->>UI: Click "Retry Assignment"
+        UI->>API: POST /api/study-packs/{id}/assignment/retry
+        API->>DB: Clear submission state in SQLite
+        API-->>UI: Return reset assignment
+        UI->>User: Reopen assignment for new attempt
     end
 
     UI->>API: GET /api/study-packs/{study_pack_id}

@@ -39,8 +39,10 @@ In modern higher education, course materials are distributed across fragmented, 
 - **AI-as-a-Judge Quality Review**: Stage 6 scores 5 dimensions (1–10) and outputs machine-applicable corrections.
 - **Asynchronous Execution & Live Stepper**: Background worker processes generation jobs while the frontend polls progress every 2 seconds, displaying an active stage-by-stage stepper.
 - **Interactive Quiz Interface**: Students test their mastery directly within the web app with instant scoring, answer verification, and rationale displays.
+- **Dedicated Practice Assignment (MCQ Only)**: Placed immediately after lecture summaries, offering selectable question counts (5, 10, 15, 20) and difficulty levels (Easy, Medium, Hard, Mixed). Enforces strict multiple-choice questions (4 options A-D, 1 correct answer, thorough explanation), hides answers during attempts, grades automatically, displays marks and percentages, highlights responses in green/red, and provides a Retry option.
+- **Strict Prompt Privacy**: Frontend exposes only the version selector (`V1 – Baseline`, `V2 – Role-Based`, `V3 – Few-Shot Grounded`). Raw prompt templates, system instructions, and internal placeholders are never exposed in the UI or API payloads.
 - **Relational History Catalog**: SQLite persistence allows students to review, inspect, and delete previously generated packs.
-- **One-Click Multi-Format Export**: Generates styled, publication-ready PDFs (ReportLab) and editable Microsoft Word documents (`python-docx`).
+- **One-Click Multi-Format Export**: Generates styled, publication-ready PDFs (ReportLab) and editable Microsoft Word documents (`python-docx`), embedding the Practice Assignment and answer key.
 
 ---
 
@@ -56,7 +58,7 @@ In modern higher education, course materials are distributed across fragmented, 
 | **Database** | SQLite 3 via SQLAlchemy ORM | Embedded relational persistence (`documents`, `study_packs`) |
 | **Document Parsers** | PyMuPDF (`fitz`), `python-pptx`, `python-docx` | Native slide, table, and document extraction |
 | **Export Engines** | ReportLab (PDF), `python-docx` (DOCX) | Programmatic multi-page document generation |
-| **Testing** | pytest 8, httpx, Starlette TestClient | 90 automated unit, API, integration, and live tests |
+| **Testing** | pytest 9, httpx, Starlette TestClient | 111 automated unit, API, integration, and live tests |
 
 ---
 
@@ -193,7 +195,7 @@ Detailed prompt iteration evidence: [`prompts/README.md`](prompts/README.md) and
 
 ## 9. Testing & Quality Assurance
 
-The application includes an automated test suite implemented in `pytest` containing **90 tests** covering unit components, API endpoints, schema validation, backoff resilience, document chunking, export builders, and live Gemini API inference:
+The application includes an automated test suite implemented in `pytest` containing **111 tests** covering unit components, API endpoints, schema validation, backoff resilience, document chunking, export builders, live Gemini API inference, and the Practice Assignment:
 
 ```bash
 cd code/backend
@@ -202,26 +204,26 @@ pytest -v
 ```
 
 ### Verified Test Results
-- **Collected Tests**: 90
-- **Passed**: **90 (100%)**
+- **Collected Tests**: 111
+- **Passed**: **111 (100%)**
 - **Failed**: **0 (0%)**
-- **Duration**: ~12.44 seconds
-- **Test Scenarios Table**: 14 distinct test inputs evaluated across Normal, Edge, and Invalid cases ([`test-data/TEST_CASE_TABLE.md`](test-data/TEST_CASE_TABLE.md)).
+- **Duration**: ~9.11 seconds
+- **Test Scenarios Table**: 17 distinct test inputs evaluated across Normal, Edge, and Invalid cases ([`test-data/TEST_CASE_TABLE.md`](test-data/TEST_CASE_TABLE.md)).
 
 ---
 
 ## 10. Application Screenshots
 
-All 13 screenshots were captured directly from the live application and are available in [`docs/screenshots/`](docs/screenshots/):
+All 15 screenshots were captured directly from the live application and are available in [`docs/screenshots/`](docs/screenshots/):
 
 | # | Filename | Description |
 | :-: | :--- | :--- |
 | **01** | [`01_dashboard.png`](docs/screenshots/01_dashboard.png) | Welcome dashboard with system statistics and recent study packs. |
-| **02** | [`02_upload_page.png`](docs/screenshots/02_upload_page.png) | Upload drag-and-drop zone with generation options. |
+| **02** | [`02_upload_page.png`](docs/screenshots/02_upload_page.png) | Upload drag-and-drop zone with prompt version selector (`V1 – Baseline`, `V2 – Role-Based`, `V3 – Few-Shot Grounded`) and assignment settings. |
 | **03** | [`03_file_uploaded_success.png`](docs/screenshots/03_file_uploaded_success.png) | Extracted document metadata and text preview. |
 | **04** | [`04_generation_progress.png`](docs/screenshots/04_generation_progress.png) | Real-time 6-stage background progress stepper. |
 | **05** | [`05_study_pack_overview.png`](docs/screenshots/05_study_pack_overview.png) | Study pack overview, metadata chips, and stat cards. |
-| **06** | [`06_study_pack_summary.png`](docs/screenshots/06_study_pack_summary.png) | Topic summaries, executive summary, and learning objectives. |
+| **06** | [`06_study_pack_summary.png`](docs/screenshots/06_study_pack_summary.png) | Topic summaries, executive summary, and Practice Assignment start action. |
 | **07** | [`07_study_pack_key_concepts.png`](docs/screenshots/07_study_pack_key_concepts.png) | Technical terms, definitions, formulas, and pitfalls. |
 | **08** | [`08_study_pack_mcqs.png`](docs/screenshots/08_study_pack_mcqs.png) | Interactive MCQs with option selection and distractor rationales. |
 | **09** | [`09_study_pack_questions_and_answers.png`](docs/screenshots/09_study_pack_questions_and_answers.png) | Short and long questions with model answers and rubrics. |
@@ -229,6 +231,8 @@ All 13 screenshots were captured directly from the live application and are avai
 | **11** | [`11_study_pack_history.png`](docs/screenshots/11_study_pack_history.png) | History catalog of stored study packs with filters and actions. |
 | **12** | [`12_pdf_download.png`](docs/screenshots/12_pdf_download.png) | Highlighted PDF download button and export generation. |
 | **13** | [`13_docx_download.png`](docs/screenshots/13_docx_download.png) | Highlighted DOCX download button and export generation. |
+| **14** | [`14_practice_assignment_attempt.png`](docs/screenshots/14_practice_assignment_attempt.png) | Practice Assignment attempt view: MCQ-only questions with selectable options (A-D), hidden correct answers, and submit action. |
+| **15** | [`15_practice_assignment_submitted.png`](docs/screenshots/15_practice_assignment_submitted.png) | Practice Assignment scored review: automated marks and percentage, green/red option highlights, explanations, and retry action. |
 
 Complete captions: [`docs/screenshots/SCREENSHOT_INDEX.md`](docs/screenshots/SCREENSHOT_INDEX.md).
 

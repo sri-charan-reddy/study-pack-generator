@@ -52,6 +52,10 @@ export const api = {
   getStudyPack: (id) => request(`/study-packs/${id}`),
   deleteStudyPack: (id) => request(`/study-packs/${id}`, { method: 'DELETE' }),
   downloadUrl: (id, format) => `${BASE}/study-packs/${id}/download?format=${format}`,
+
+  generateAssignment: (id, options) => request(`/study-packs/${id}/assignment/generate`, json('POST', options)),
+  submitAssignment: (id, answers) => request(`/study-packs/${id}/assignment/submit`, json('POST', { answers })),
+  retryAssignment: (id) => request(`/study-packs/${id}/assignment/retry`, { method: 'POST' }),
 }
 
 export function validateFile(file) {

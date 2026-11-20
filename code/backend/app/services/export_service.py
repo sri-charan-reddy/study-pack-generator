@@ -95,6 +95,27 @@ def build_pdf(pack: dict) -> bytes:
             w.p("Examples:", w.small)
             w.bullets(t["examples"])
 
+    pa = pack.get("practice_assignment") or {}
+    pa_questions = pa.get("questions") or []
+    if pa_questions:
+        w.story.append(PageBreak())
+        w.p("Practice Assignment (Multiple-Choice Questions)", w.h2)
+        w.p(f"Difficulty: {str(pa.get('difficulty', 'mixed')).title()}   |   Total MCQs: {len(pa_questions)}   |   Total Marks: {len(pa_questions)}", w.small)
+        w.p("Instructions: Select exactly one answer option (A, B, C, or D) for each question. All questions are grounded in the lecture notes.", w.small)
+        w.gap(6)
+        for i, mc in enumerate(pa_questions, 1):
+            w.p(f"Q{i}. {mc['question']}  [{mc.get('difficulty', '')}{', ' + mc['topic'] if mc.get('topic') else ''}]", w.body)
+            for j, opt in enumerate(mc.get("options", [])):
+                w.p(f"{LETTERS[j]}. {opt}", w.option)
+            w.gap(3)
+        w.gap(6)
+        w.p("Practice Assignment Answer Key & Explanations", w.h3)
+        for i, mc in enumerate(pa_questions, 1):
+            w.p(f"Q{i}: Answer {mc.get('correct_option', '?')}", w.body)
+            if mc.get("explanation"):
+                w.p(f"Explanation: {mc['explanation']}", w.answer)
+            w.gap(2)
+
     w.story.append(PageBreak())
     w.p("Key Concepts", w.h2)
     if k.get("terms"):
@@ -236,6 +257,31 @@ def build_docx(pack: dict) -> bytes:
                 doc.add_paragraph(f"{label}:").runs[0].bold = True
                 for item in t[key]:
                     doc.add_paragraph(item, style="List Bullet")
+
+    pa = pack.get("practice_assignment") or {}
+    pa_questions = pa.get("questions") or []
+    if pa_questions:
+        doc.add_page_break()
+        doc.add_heading("Practice Assignment (Multiple-Choice Questions)", level=1)
+        meta_p = doc.add_paragraph(
+            f"Difficulty: {str(pa.get('difficulty', 'mixed')).title()}  |  Total MCQs: {len(pa_questions)}  |  Total Marks: {len(pa_questions)}\n"
+            "Instructions: Select exactly one answer option (A, B, C, or D) for each question. All questions are grounded in the lecture notes."
+        )
+        for run in meta_p.runs:
+            run.font.size = Pt(9)
+            run.font.color.rgb = RGBColor(0x47, 0x55, 0x69)
+        for i, mc in enumerate(pa_questions, 1):
+            p = doc.add_paragraph()
+            p.add_run(f"Q{i}. {mc['question']}").bold = True
+            p.add_run(f"  [{mc.get('difficulty', '')}{', ' + mc['topic'] if mc.get('topic') else ''}]").italic = True
+            for j, opt in enumerate(mc.get("options", [])):
+                doc.add_paragraph(f"{LETTERS[j]}. {opt}")
+        doc.add_heading("Practice Assignment Answer Key & Explanations", level=2)
+        for i, mc in enumerate(pa_questions, 1):
+            p = doc.add_paragraph()
+            p.add_run(f"Q{i}: Answer {mc.get('correct_option', '?')}  ").bold = True
+            if mc.get("explanation"):
+                p.add_run(f"Explanation: {mc['explanation']}")
 
     doc.add_page_break()
     doc.add_heading("Key Concepts", level=1)

@@ -25,17 +25,23 @@ def prompts_root() -> Path:
     return get_settings().prompts_path
 
 
+VERSION_NAMES = {
+    "v1": "V1 – Baseline",
+    "v2": "V2 – Role-Based",
+    "v3": "V3 – Few-Shot Grounded",
+}
+
+
 def available_versions() -> list[dict]:
-    """Versions that contain all six stage files, with their description (first line of README.md)."""
+    """Versions that contain all six stage files, with their display name."""
     versions = []
     for folder in sorted(prompts_root().iterdir()):
         if not folder.is_dir() or not folder.name.startswith("v"):
             continue
         files = {f.stem for f in folder.glob("*.md")}
         complete = all(stage in files for stage in STAGES)
-        readme = folder / "README.md"
-        description = readme.read_text(encoding="utf-8").splitlines()[0].lstrip("# ").strip() if readme.exists() else ""
-        versions.append({"version": folder.name, "complete": complete, "description": description, "stages": list(STAGES)})
+        name = VERSION_NAMES.get(folder.name, folder.name.upper())
+        versions.append({"version": folder.name, "name": name, "complete": complete, "stages": list(STAGES)})
     return versions
 
 

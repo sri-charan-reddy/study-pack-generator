@@ -276,3 +276,73 @@ input:focus, select:focus { outline: 2px solid #bfdbfe; border-color: var(--prim
 .list-item .grow { flex: 1; min-width: 0; }
 .list-item .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .list-item .m { font-size: 12px; color: var(--muted); }
+
+/* Practice Assignment */
+.assignment-banner {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  border: 1px solid #bfdbfe;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+.assignment-banner.score-banner {
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  border-color: #86efac;
+}
+.assignment-banner.score-banner.needs-review {
+  background: linear-gradient(135deg, #fffbeb, #fef3c7);
+  border-color: #fde68a;
+}
+.assignment-option-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-top: 8px;
+  cursor: pointer;
+  font-size: 14.5px;
+  transition: all 0.15s ease;
+}
+.assignment-option-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: rgba(30, 58, 138, 0.04);
+}
+.assignment-option-btn.selected {
+  border-color: var(--primary);
+  background: rgba(30, 58, 138, 0.08);
+  font-weight: 600;
+}
+.assignment-option-btn.opt-correct {
+  border-color: #10b981;
+  background: #ecfdf5;
+  color: #065f46;
+  font-weight: 600;
+}
+.assignment-option-btn.opt-incorrect {
+  border-color: #ef4444;
+  background: #fef2f2;
+  color: #991b1b;
+}
+.assignment-option-btn:disabled {
+  cursor: default;
+}
+.opt-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  margin-left: auto;
+  font-weight: 600;
+}
+.opt-tag.correct {
+  background: #d1fae5;
+  color: #065f46;
+}
+.opt-tag.incorrect {
+  background: #fee2e2;
+  color: #991b1b;
+}
