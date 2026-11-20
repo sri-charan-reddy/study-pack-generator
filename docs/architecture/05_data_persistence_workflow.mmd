@@ -1,0 +1,37 @@
+erDiagram
+    documents ||--o{ study_packs : "has many"
+
+    documents {
+        string id PK "32-character UUID hex"
+        string filename "Original uploaded filename"
+        string file_type "pdf | pptx | docx | txt"
+        string file_path "Absolute path in backend/uploads/"
+        int char_count "Total character count"
+        int word_count "Total word count"
+        int page_count "Pages or slides count"
+        datetime created_at "Timestamp of upload"
+    }
+
+    study_packs {
+        int id PK "Autoincrement integer primary key"
+        string document_id FK "References documents(id)"
+        string title "Extracted title of study pack"
+        string prompt_version "v1 | v2 | v3"
+        string model "gemini-3.5-flash-lite"
+        string status "pending | running | completed | failed"
+        string current_stage "Current active stage or done"
+        text error "Error message if failed"
+        json options "mcq_count, short_count, long_count, difficulty"
+        json pack "Complete serialized StudyPack Pydantic object"
+        float overall_score "AI Reviewer overall score (0.0 - 10.0)"
+        string verdict "pass | needs_revision"
+        int mcq_count "Total MCQs generated"
+        int short_count "Total short questions generated"
+        int long_count "Total long questions generated"
+        int chunk_count "Number of document chunks processed"
+        float total_seconds "Total end-to-end generation duration"
+        int prompt_tokens "Cumulative prompt input tokens"
+        int output_tokens "Cumulative model output tokens"
+        datetime created_at "Generation start timestamp"
+        datetime completed_at "Generation completion timestamp"
+    }

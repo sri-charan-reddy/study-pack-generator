@@ -1,0 +1,62 @@
+flowchart TD
+    Start([Raw Extracted Lecture Text & Chunk Info]) --> Stage1
+
+    subgraph S1["Stage 1: Document Understanding"]
+        Stage1["Prompt: P01_DOC_UNDERSTANDING (v3)<br/>Role: Curriculum Analyst"]
+        Stage1 --> LLM1["Gemini 3.5 Flash Lite"]
+        LLM1 --> Val1["Validate DocumentUnderstanding Schema"]
+        Val1 --> Out1["Output 1: Title, Subject, Topics Outline & Relationships"]
+    end
+
+    Out1 --> Stage2
+    Out1 --> Stage3
+    Out1 --> Stage4
+    Out1 --> Stage6
+
+    subgraph S2["Stage 2: Summary Generation"]
+        Stage2["Prompt: P02_SUMMARY_GEN (v3)<br/>Inputs: Source Text + Document Outline"]
+        Stage2 --> LLM2["Gemini 3.5 Flash Lite"]
+        LLM2 --> Val2["Validate SummaryOutput Schema"]
+        Val2 --> Out2["Output 2: Overall Summary + Topic Summaries + Formulas"]
+    end
+
+    Out2 --> Stage4
+    Out2 --> Stage6
+
+    subgraph S3["Stage 3: Key Concept Extraction"]
+        Stage3["Prompt: P03_CONCEPT_EXTRACT (v3)<br/>Inputs: Source Text + Document Outline"]
+        Stage3 --> LLM3["Gemini 3.5 Flash Lite"]
+        LLM3 --> Val3["Validate KeyConceptsOutput Schema"]
+        Val3 --> Out3["Output 3: Technical Terms, Definitions, Formulas & Principles"]
+    end
+
+    Out3 --> Stage5
+    Out3 --> Stage6
+
+    subgraph S4["Stage 4: Question Generation"]
+        Stage4["Prompt: P04_QUESTION_GEN (v3)<br/>Inputs: Outline + Summaries + Constraints<br/>(No answers in this prompt)"]
+        Stage4 --> LLM4["Gemini 3.5 Flash Lite"]
+        LLM4 --> Val4["Validate QuestionsOutput Schema"]
+        Val4 --> Out4["Output 4: Unanswered MCQs, Short & Long Questions"]
+    end
+
+    Out4 --> Stage5
+
+    subgraph S5["Stage 5: Answer Formulation"]
+        Stage5["Prompt: P05_ANSWER_GEN (v3)<br/>Inputs: Questions + Key Concepts + Notes"]
+        Stage5 --> LLM5["Gemini 3.5 Flash Lite"]
+        LLM5 --> Val5["Validate AnswersOutput Schema"]
+        Val5 --> Out5["Output 5: Verified Option Keys, Rationales & Rubrics"]
+    end
+
+    Out5 --> Stage6
+
+    subgraph S6["Stage 6: Quality Evaluation (AI-as-a-Judge)"]
+        Stage6["Prompt: P06_QUALITY_EVAL (v3)<br/>Role: Independent Skeptical Reviewer<br/>Inputs: All Prior Outputs vs Notes"]
+        Stage6 --> LLM6["Gemini 3.5 Flash Lite"]
+        LLM6 --> Val6["Validate ReviewOutput Schema"]
+        Val6 --> Out6["Output 6: Scores (1-10), Issues & Machine Corrections"]
+    end
+
+    Out6 --> FinalMerge["Pipeline Merge & Auto-Correction Engine"]
+    FinalMerge --> FinalPack([Persisted StudyPack Object])

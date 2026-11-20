@@ -1,0 +1,65 @@
+sequenceDiagram
+    autonumber
+    actor User as Student / User
+    participant UI as React Generation (/generate/:id)
+    participant API as FastAPI (/api/generate)
+    participant Worker as Background Task Worker
+    participant Pipeline as StudyPackPipeline
+    participant Gemini as Google Gemini API
+    participant DB as SQLite (study_packs table)
+
+    User->>UI: Click "Generate study pack"
+    UI->>API: POST /api/generate/{file_id}/start (options JSON)
+    API->>DB: Insert study_pack record (status: 'pending')
+    API->>Worker: Enqueue BackgroundTask(run_generation_job)
+    API-->>UI: HTTP 200 JSON ({study_pack_id, status: 'pending', stages})
+    
+    UI->>UI: Redirect to /generate/{study_pack_id}
+    
+    loop Polling Loop (Every 2000ms)
+        UI->>API: GET /api/study-packs/{study_pack_id}
+        API->>DB: Query current status and stage
+        DB-->>API: Return record state
+        API-->>UI: HTTP 200 JSON ({status, current_stage, elapsed_seconds})
+        UI->>UI: Update Stepper UI & Active Progress Bar
+    end
+
+    critical Async Pipeline Execution
+        Worker->>DB: Update status='running', current_stage='01_document_understanding'
+        Worker->>Pipeline: understand(chunks)
+        Pipeline->>Gemini: Call Gemini 3.5 Flash Lite
+        Gemini-->>Pipeline: JSON response
+        
+        Worker->>DB: Update current_stage='02_summary_generation'
+        Worker->>Pipeline: summarise(chunks, outline)
+        Pipeline->>Gemini: Call Gemini 3.5 Flash Lite
+        Gemini-->>Pipeline: JSON response
+
+        Worker->>DB: Update current_stage='03_key_concept_extraction'
+        Worker->>Pipeline: extract_concepts(chunks, outline)
+        Pipeline->>Gemini: Call Gemini 3.5 Flash Lite
+        Gemini-->>Pipeline: JSON response
+
+        Worker->>DB: Update current_stage='04_question_generation'
+        Worker->>Pipeline: generate_questions(...)
+        Pipeline->>Gemini: Call Gemini 3.5 Flash Lite
+        Gemini-->>Pipeline: JSON response
+
+        Worker->>DB: Update current_stage='05_answer_generation'
+        Worker->>Pipeline: generate_answers(...)
+        Pipeline->>Gemini: Call Gemini 3.5 Flash Lite
+        Gemini-->>Pipeline: JSON response
+
+        Worker->>DB: Update current_stage='06_quality_evaluation'
+        Worker->>Pipeline: evaluate_quality(...)
+        Pipeline->>Gemini: Call Gemini 3.5 Flash Lite
+        Gemini-->>Pipeline: JSON response
+        
+        Worker->>Pipeline: Apply automated corrections & compute metrics
+        Worker->>DB: Update status='completed', current_stage='done', pack=FullJSON, overall_score=10.0
+    end
+
+    UI->>API: GET /api/study-packs/{study_pack_id}
+    API-->>UI: HTTP 200 JSON (status: 'completed', pack: FullStudyPack)
+    UI->>UI: Auto-redirect to /packs/{study_pack_id}
+    UI-->>User: Display Complete Study Pack Viewer

@@ -1,0 +1,8 @@
+INTRODUCTION TO MACHINE LEARNING
+Machine learning is the study of algorithms that improve through experience. Supervised learning uses labelled data; unsupervised learning finds structure in unlabelled data.
+
+LINEAR REGRESSION
+Linear regression models the relationship y = w*x + b. The loss function is Mean Squared Error: MSE = (1/n) * sum((y_i - y_hat_i)^2). Gradient descent updates w := w - alpha * dL/dw.
+
+OVERFITTING AND REGULARISATION
+Overfitting occurs when a model memorises training data. L2 regularisation adds lambda * ||w||^2 to the loss to penalise large weights.

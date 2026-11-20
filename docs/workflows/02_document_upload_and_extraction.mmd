@@ -1,0 +1,37 @@
+sequenceDiagram
+    autonumber
+    actor User as Student / User
+    participant Frontend as React Dropzone (/upload)
+    participant API as FastAPI (/api/upload)
+    participant Service as UploadService
+    participant Extractor as Document Extractors
+    participant DB as SQLite (documents table)
+    participant Disk as Storage (backend/uploads/)
+
+    User->>Frontend: Drag & drop file (PDF / PPTX / DOCX / TXT)
+    Frontend->>Frontend: Client-side validation (type, size <= 25MB)
+    Frontend->>API: POST /api/upload (multipart/form-data)
+    API->>Service: handle_upload(UploadFile)
+    
+    Service->>Service: Validate extension & MIME type
+    Service->>Disk: Persist file ({uuid}_{filename})
+    
+    alt File is PDF (.pdf)
+        Service->>Extractor: PyMuPDF fitz.open(path)
+        Extractor-->>Service: Return pages text & page markers
+    else File is PPTX (.pptx)
+        Service->>Extractor: python-pptx Presentation(path)
+        Extractor-->>Service: Return slide text, notes & table cells
+    else File is DOCX (.docx)
+        Service->>Extractor: python-docx Document(path)
+        Extractor-->>Service: Return paragraphs, headings & tables
+    else File is TXT (.txt)
+        Service->>Extractor: Decode UTF-8 (Latin-1 fallback)
+        Extractor-->>Service: Return cleaned text
+    end
+
+    Service->>Service: Clean text, compute word/char/page counts
+    Service->>DB: Insert record into documents table
+    Service-->>API: Return DocumentMetadata & text_preview
+    API-->>Frontend: HTTP 200 JSON ({file_id, page_count, word_count, preview})
+    Frontend-->>User: Display "Text extracted" badge & generation settings

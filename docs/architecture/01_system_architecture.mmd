@@ -1,0 +1,64 @@
+graph TB
+    subgraph Client["Frontend Layer (React 18 + Vite 5)"]
+        UI["React SPA Components<br/>(Dashboard, Upload, Viewer, History)"]
+        State["Client State & React Router v6"]
+        ViteProxy["Vite Dev Server Proxy<br/>(/api -> :8000)"]
+    end
+
+    subgraph Backend["Backend Layer (FastAPI + Python 3.12)"]
+        API["FastAPI App (app/main.py)"]
+        
+        subgraph Routers["API Routers"]
+            R_Upload["/api/upload<br/>(UploadRouter)"]
+            R_AI["/api/ai & /api/generate<br/>(AIRouter)"]
+            R_Packs["/api/study-packs<br/>(StudyPacksRouter)"]
+        end
+
+        subgraph Services["Core Application Services"]
+            S_Upload["UploadService<br/>(Validation & Storage)"]
+            S_Gen["GenerationService<br/>(Async Worker Dispatch)"]
+            S_Export["ExportService<br/>(ReportLab PDF & python-docx)"]
+        end
+
+        subgraph Extractors["Document Parsing Engine"]
+            E_PDF["PyMuPDF (fitz)"]
+            E_PPTX["python-pptx"]
+            E_DOCX["python-docx"]
+            E_TXT["Text Decoder"]
+        end
+
+        subgraph AIPipeline["Prompt Engineering Pipeline"]
+            Loader["PromptLoader<br/>(v1 / v2 / v3 Templates)"]
+            Chunker["Chunking Engine<br/>(40,000 char boundary)"]
+            Pipeline["StudyPackPipeline<br/>(6-Stage Prompt Chain)"]
+            ClientLLM["GeminiClient<br/>(Retry & Repair Loop)"]
+        end
+
+        subgraph DB["Database Layer (SQLAlchemy ORM)"]
+            SQLite[("SQLite 3<br/>studypack.db")]
+            T_Docs["documents table"]
+            T_Packs["study_packs table"]
+        end
+    end
+
+    subgraph External["External Cloud AI Engine"]
+        Gemini["Google Gemini API<br/>(gemini-3.5-flash-lite)"]
+    end
+
+    UI --> ViteProxy
+    ViteProxy --> API
+    API --> R_Upload & R_AI & R_Packs
+    R_Upload --> S_Upload
+    S_Upload --> Extractors
+    S_Upload --> T_Docs
+    R_AI --> S_Gen
+    S_Gen --> Chunker
+    Chunker --> Pipeline
+    Pipeline --> Loader
+    Pipeline --> ClientLLM
+    ClientLLM --> Gemini
+    Pipeline --> T_Packs
+    R_Packs --> S_Export
+    S_Export --> T_Packs
+    T_Docs --- SQLite
+    T_Packs --- SQLite
