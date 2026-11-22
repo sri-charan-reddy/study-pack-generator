@@ -36,8 +36,9 @@ export default function Upload() {
   useEffect(() => {
     api.promptVersions()
       .then((v) => {
-        setVersions(v.versions.filter((x) => x.complete))
-        setOptions((o) => ({ ...o, prompt_version: v.versions.some((x) => x.version === 'v3') ? 'v3' : v.default }))
+        const list = Array.isArray(v?.versions) ? v.versions : []
+        setVersions(list.filter((x) => x.complete))
+        setOptions((o) => ({ ...o, prompt_version: list.some((x) => x.version === 'v3') ? 'v3' : (v?.default || 'v3') }))
       })
       .catch((e) => setError(e.message))
   }, [])

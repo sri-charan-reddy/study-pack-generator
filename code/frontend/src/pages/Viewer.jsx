@@ -25,9 +25,14 @@ export default function Viewer() {
   if (error) return <Alert>{error}</Alert>
   if (!record?.pack) return <Loading text="Loading study pack…" />
 
-  const pack = record.pack
-  const { document: doc, summaries, key_concepts: kc, questions: q, review, meta, practice_assignment } = pack
-  const assignment = practice_assignment || {
+  const pack = record.pack || {}
+  const doc = pack.document || { main_topics: [], topic_relationships: [] }
+  const summaries = pack.summaries || { topics: [] }
+  const kc = pack.key_concepts || { terms: [], formulas: [], key_concepts: [], examples: [] }
+  const q = pack.questions || { mcqs: [], short_answer: [], long_answer: [] }
+  const review = pack.review || null
+  const meta = pack.meta || {}
+  const assignment = pack.practice_assignment || {
     title: 'Practice Assignment',
     difficulty: 'mixed',
     mcq_count: 0,
@@ -36,13 +41,13 @@ export default function Viewer() {
   }
 
   const tabs = [
-    ['summary', 'Summary', summaries.topics.length],
-    ['assignment', 'Practice Assignment', assignment.questions?.length || 0],
-    ['concepts', 'Key concepts', kc.terms.length + kc.formulas.length + kc.key_concepts.length],
-    ['mcq', 'MCQs', q.mcqs.length],
-    ['short', 'Short questions', q.short_answer.length],
-    ['long', 'Long questions', q.long_answer.length],
-    ['review', 'Quality report', review ? review.issues.length : 0],
+    ['summary', 'Summary', (summaries.topics || []).length],
+    ['assignment', 'Practice Assignment', (assignment.questions || []).length],
+    ['concepts', 'Key concepts', (kc.terms || []).length + (kc.formulas || []).length + (kc.key_concepts || []).length],
+    ['mcq', 'MCQs', (q.mcqs || []).length],
+    ['short', 'Short questions', (q.short_answer || []).length],
+    ['long', 'Long questions', (q.long_answer || []).length],
+    ['review', 'Quality report', review?.issues ? review.issues.length : 0],
   ]
 
   function updateAssignment(updated) {

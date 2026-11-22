@@ -12,11 +12,11 @@ export default function Dashboard() {
     api.listStudyPacks(50).then(setData).catch((e) => setError(e.message))
   }, [])
 
-  const items = data?.items || []
+  const items = Array.isArray(data?.items) ? data.items : []
   const completed = items.filter((p) => p.status === 'completed')
   const avg = completed.filter((p) => p.overall_score != null)
-  const avgScore = avg.length ? (avg.reduce((s, p) => s + p.overall_score, 0) / avg.length).toFixed(1) : '–'
-  const totalQuestions = completed.reduce((s, p) => s + p.mcq_count + p.short_count + p.long_count, 0)
+  const avgScore = avg.length ? (avg.reduce((s, p) => s + (p.overall_score || 0), 0) / avg.length).toFixed(1) : '–'
+  const totalQuestions = completed.reduce((s, p) => s + (p.mcq_count || 0) + (p.short_count || 0) + (p.long_count || 0), 0)
 
   return (
     <>

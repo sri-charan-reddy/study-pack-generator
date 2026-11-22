@@ -25,7 +25,13 @@ class Settings(BaseSettings):
 
     host: str = "127.0.0.1"
     port: int = 8000
-    allowed_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    allowed_origins: str = (
+        "http://localhost:5173,"
+        "http://127.0.0.1:5173,"
+        "https://study-pack-generator-xi.vercel.app,"
+        "https://study-pack-generator.vercel.app"
+    )
+    cors_origin_regex: str = r"^https:\/\/.*\.vercel\.app$"
 
     upload_dir: str = "uploads"
     database_url: str = "sqlite:///./studypack.db"

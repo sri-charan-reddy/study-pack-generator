@@ -16,7 +16,11 @@ async function request(path, options = {}) {
   try {
     response = await fetch(`${BASE}${path}`, options)
   } catch {
-    throw new ApiError('Cannot reach the backend. Is the FastAPI server running on port 8000?', 0)
+    const isDev = import.meta.env.DEV
+    const msg = isDev
+      ? 'Cannot reach the backend. Is the FastAPI server running on port 8000?'
+      : 'Cannot reach the backend. The server may be waking up from cold start (~50s) or blocked by CORS. Please retry in a few seconds.'
+    throw new ApiError(msg, 0)
   }
   if (response.status === 204) return null
   const isJson = (response.headers.get('content-type') || '').includes('application/json')
@@ -24,6 +28,9 @@ async function request(path, options = {}) {
   if (!response.ok) {
     let detail = body && body.detail !== undefined ? body.detail : body
     if (Array.isArray(detail)) detail = detail.map((d) => `${(d.loc || []).slice(1).join('.')}: ${d.msg}`).join('; ')
+    if (typeof detail === 'string' && (detail.startsWith('<!doctype') || detail.startsWith('<html'))) {
+      detail = `Server returned HTTP ${response.status}`
+    }
     throw new ApiError(typeof detail === 'string' && detail ? detail : `Request failed (${response.status})`, response.status)
   }
   return body
